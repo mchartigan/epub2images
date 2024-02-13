@@ -4,6 +4,8 @@ Converts `.epub` files to a series of `.png` images for use with custom e-reader
 ## Requirements
 Must have [Calibre](https://calibre-ebook.com/) installed, including having a development environment for it set up (see [Becoming a calibre developer](https://calibre-ebook.com/get-involved)). Test to see if your environment is properly set up by running the terminal command `ebook-convert`.
 
+Download the necessary Python packages by running `pip install -r requirements.txt` in the base directory.
+
 ## Usage
 Once all the necessary Python packages are installed and the Calibre environment is set up, the script can be used from the command line by typing
 
