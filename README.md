@@ -1,5 +1,5 @@
 # epub2images
-Converts `.epub` files to a series of `.png` images for use with custom e-readers.
+Converts `.epub` files to a series of `.png` images for use with custom e-readers. Developed specifically for my homebrew e-reader platform -- [device firmware can be found here](https://github.com/mchartigan/esp-reader).
 
 ## Requirements
 Must have [Calibre](https://calibre-ebook.com/) installed, including having a development environment for it set up (see [Becoming a calibre developer](https://calibre-ebook.com/get-involved)). Test to see if your environment is properly set up by running the terminal command `ebook-convert`.
@@ -9,9 +9,9 @@ Download the necessary Python packages by running `pip install -r requirements.t
 ## Usage
 Once all the necessary Python packages are installed and the Calibre environment is set up, the script can be used from the command line by typing
 
-`python epub2images.py <path_to_epub>.epub`
+`python epub2images.py <path_to_epub>.epub --png`
 
-Once the script is done running, the series of images are numbered sequentially and output to `./output/<name_of_epub>/`. The intermediate `.pdf` file is also generated and can be found under `./input/<name_of_epub>.pdf`. Enter `python epub2images.py -h` to see other possible command line arguments.
+Once the script is done running, the series of images are numbered sequentially and output to `./output/<name_of_epub>/`. The intermediate `.pdf` file is also generated and can be found under `./input/<name_of_epub>.pdf`. Enter `python epub2images.py -h` to see other possible command line arguments. For example, dropping the `--png` argument makes instead black-and-white binary dumps of the image, which are formatted for use with my e-reader.
 
 ## Caveats
 I developed the script for use with my homebrew e-reader that uses a [Waveshare 7.5" e-ink display](https://www.waveshare.com/product/7.5inch-e-paper.htm) with their [ESP32 platform](https://www.waveshare.com/e-paper-esp32-driver-board.htm). I added a microSD card to which I can upload these images, thereby allowing me to send an image display command to the e-ink display using the generated `.png`s. As such, the pipeline has been tailored to this 480x800 display. I made a custom Output Profile for Calibre called `waveshare_eink_large` by copying and editing the `GenericEinkLarge` class found in Calibre's [`profiles.py`](https://github.com/kovidgoyal/calibre/blob/master/src/calibre/customize/profiles.py) -- not forgetting to add it to the `output_profiles` list at the bottom of the file.
