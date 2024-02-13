@@ -65,16 +65,31 @@ def main(args: list[str]=sys.argv) -> int:
     parser.add_argument('epub_path', type=str, nargs=1, help='path to .epub file')
     parser.add_argument('-f', '--fontsize', type=int, nargs='?', default='8', help='font size, in px')
     parser.add_argument('-m', '--margins', type=int, nargs='?', default='5', help='margin size, in pt')
+    parser.add_argument('--png', action='store_true', help='save images as PNG instead of binary')
     args = parser.parse_args(args[1:])
     
-    fname_stem = Path(args.epub_path[0]).stem
-    pdf_path = f'./input/{fname_stem}.pdf'
-    opts = waveshare_opts(fontsize=args.fontsize, margins=args.margins)
+    # catch if string is not file
+    if not Path(args.epub_path[0]).is_file():
+        print('Path to file provided is not accessible.')
+        return 1
     
-    # Convert EPUB to PDF using Calibre CLI
-    print('Converting EPUB to PDF using Calibre... ')
-    run(f'ebook-convert "{args.epub_path[0]}" "{pdf_path}" {opts}')
-    print('Done.')
+    fname_stem = Path(args.epub_path[0]).stem
+    
+    # check file extension
+    if args.epub_path[0].endswith("epub"):      # if epub, convert to pdf
+        pdf_path = f'./input/{fname_stem}.pdf'
+        opts = waveshare_opts(fontsize=args.fontsize, margins=args.margins)
+        
+        # Convert EPUB to PDF using Calibre CLI
+        print('Converting EPUB to PDF using Calibre... ')
+        run(f'ebook-convert "{args.epub_path[0]}" "{pdf_path}" {opts}')
+        print('Done.')
+    elif args.epub_path[0].endswith("pdf"):     # if pdf, move on
+        print('PDF provided.')
+        pdf_path = args.epub_path[0]
+    else:                                       # if neither, error
+        print('Invalid filetype provided!')
+        return 1
 
     # Convert PDF to Image objects
     print('Converting PDF to images... ')
@@ -92,13 +107,23 @@ def main(args: list[str]=sys.argv) -> int:
     printProgressBar(0, wid, decimals=0, length=50)
     j = 0                                   # don't update bar every iteration
     for i, img in enumerate(images):
-        img = img.crop((0,0,480,800))       # sometimes images are 481 x 800 or smth
-        im_grey = ImageOps.grayscale(img)   # convert image to greyscale for e-ink
-        im_grey.save(dirname + f'{i:06d}.png')
+        # rotate for display, then crop -- sometimes images are 481 x 800 or smth
+        img = img.rotate(90, expand=True).crop((0,0,800,480))
+        im_bw = img.convert('1')            # convert image to b/w (w/ dithering) for e-ink
+
+        if args.png:                        # write to PNG if desired
+            im_bw.save(dirname + f'{i:06d}.png')
+        else:                               # write to byte stream
+            with open(dirname + f'{i:06d}', 'wb') as file:
+                file.write(im_bw.tobytes())
         # Update Progress Bar only after an appreciable time has passed
         if floor(i / l * wid) > j:
             j = floor(i / l * wid)
             printProgressBar(j, wid, decimals=0, length=50)
+
+    if not args.png:
+        with open(dirname + 'HEAD', 'w') as file:
+            file.write(f'{0:06d} {i:06d}')
 
     print(f'PDF successfully converted. Output can be found in {dirname}.')
     return 0
