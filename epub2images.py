@@ -125,7 +125,7 @@ def main(args: list[str]=sys.argv) -> int:
 
     # Convert PDF to Image objects
     print('Converting PDF to images... ')
-    images = convert_from_path(pdf_path, size=(480,800), last_page=6, grayscale=True)
+    images = convert_from_path(pdf_path, size=(480,800), grayscale=True)
     print('Done.')
 
     # Save images to output/bookname/*.jpg
@@ -166,5 +166,4 @@ def main(args: list[str]=sys.argv) -> int:
 
 
 if __name__ == '__main__':
-    # sys.exit(main())
-    sys.exit(main(['script', 'input\Words of Radiance - Brandon Sanderson.pdf', '--png', '-d']))
+    sys.exit(main())
