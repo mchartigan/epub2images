@@ -3,9 +3,13 @@ from subprocess import run
 from pathlib import Path
 from argparse import ArgumentParser
 from pdf2image import convert_from_path
-from PIL import ImageOps
+from PIL import Image
+import numpy as np
 from math import floor
 
+floyd_steinberg = 1/16 * np.array([[0,0,7],[3,5,1]])
+stucki = 1/42 * np.array([[0,0,0,8,4],[2,4,8,4,2],[1,2,4,2,1]])
+atkinson = 1/8 * np.array([[0,0,0,1,1],[0,1,1,1,0],[0,0,1,0,0]])
 
 def waveshare_opts(fontsize: int=8, margins: int=5) -> str:
     '''
@@ -18,7 +22,7 @@ def waveshare_opts(fontsize: int=8, margins: int=5) -> str:
         String of command line options
     '''
 
-    opts = ('--input-profile=default --output-profile=waveshare_eink_large '
+    opts = ('-d --input-profile=default --output-profile=waveshare_eink_large '
         '--use-profile-size --preserve-cover-aspect-ratio '
         '--pdf-serif-family="Atkinson Hyperlegible" --pdf-sans-family="Atkinson Hyperlegible" '
         '--pdf-mono-family="Ubuntu Mono" '
@@ -27,6 +31,32 @@ def waveshare_opts(fontsize: int=8, margins: int=5) -> str:
         f'--pdf-page-margin-left={margins} --pdf-page-margin-right={margins}')
     return opts
 
+def dither(px: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+    '''
+    Uses an error diffusion algorithm defined by matrix to dither px.
+
+    :param px: numpy array of greyscale image pixel values
+    :param matrix: error diffusion matrix (odd number of cols)
+    :return:
+        black-and-white dithered version of px
+    '''
+
+    px = px / 255
+    mid = int(matrix.shape[1] / 2)  # middle index of matrix
+    
+    for i in range(0,px.shape[0]):
+        for j in range(0,px.shape[1]):
+            old = px[i,j]
+            px[i,j] = round(old)
+            err = old - px[i,j]
+            loj = max(0, j - mid)    # low index of matrices
+            hij = min(px.shape[1], j + mid + 1)
+            hii = min(px.shape[0], i + matrix.shape[0])
+            px[i:hii,loj:hij] += err * matrix[0:hii-i,mid+loj-j:mid+hij-j]
+
+    return px * 255
+
+          
 def printProgressBar (iteration: int, total: int, prefix: str='Progress:', suffix: str='Complete',
                        decimals: int=1, length: int=100, fill: str='█', printEnd: str="\r") -> None:
     '''
@@ -65,6 +95,7 @@ def main(args: list[str]=sys.argv) -> int:
     parser.add_argument('epub_path', type=str, nargs=1, help='path to .epub file')
     parser.add_argument('-f', '--fontsize', type=int, nargs='?', default='8', help='font size, in px')
     parser.add_argument('-m', '--margins', type=int, nargs='?', default='5', help='margin size, in pt')
+    parser.add_argument('-d', '--dither', action='store_true', help='dither images in EPUB (must provide EPUB)')
     parser.add_argument('--png', action='store_true', help='save images as PNG instead of binary')
     args = parser.parse_args(args[1:])
     
@@ -73,27 +104,28 @@ def main(args: list[str]=sys.argv) -> int:
         print('Path to file provided is not accessible.')
         return 1
     
-    fname_stem = Path(args.epub_path[0]).stem
+    epub_path = args.epub_path[0]
+    fname_stem = Path(epub_path).stem
     
     # check file extension
-    if args.epub_path[0].endswith("epub"):      # if epub, convert to pdf
+    if args.epub_path[0].endswith("epub"):  # if epub, convert to pdf
         pdf_path = f'./input/{fname_stem}.pdf'
         opts = waveshare_opts(fontsize=args.fontsize, margins=args.margins)
         
         # Convert EPUB to PDF using Calibre CLI
         print('Converting EPUB to PDF using Calibre... ')
-        run(f'ebook-convert "{args.epub_path[0]}" "{pdf_path}" {opts}')
+        run(f'ebook-convert "{epub_path}" "{pdf_path}" {opts}')
         print('Done.')
-    elif args.epub_path[0].endswith("pdf"):     # if pdf, move on
+    elif epub_path.endswith("pdf"):         # if pdf, move on
         print('PDF provided.')
-        pdf_path = args.epub_path[0]
-    else:                                       # if neither, error
+        pdf_path = epub_path
+    else:                                   # if neither, error
         print('Invalid filetype provided!')
         return 1
 
     # Convert PDF to Image objects
     print('Converting PDF to images... ')
-    images = convert_from_path(pdf_path, size=(480,800))
+    images = convert_from_path(pdf_path, size=(480,800), last_page=6, grayscale=True)
     print('Done.')
 
     # Save images to output/bookname/*.jpg
@@ -109,7 +141,11 @@ def main(args: list[str]=sys.argv) -> int:
     for i, img in enumerate(images):
         # rotate for display, then crop -- sometimes images are 481 x 800 or smth
         img = img.rotate(90, expand=True).crop((0,0,800,480))
-        im_bw = img.convert('1')            # convert image to b/w (w/ dithering) for e-ink
+        # convert image to b/w (w/ dithering) for e-ink
+        # if args.dither:
+        #     data = np.array(img)
+        #     img = Image.fromarray(dither(data, atkinson))
+        im_bw = img.convert('1', dither=1 if args.dither else 0)
 
         if args.png:                        # write to PNG if desired
             im_bw.save(dirname + f'{i:06d}.png')
@@ -130,4 +166,5 @@ def main(args: list[str]=sys.argv) -> int:
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    # sys.exit(main())
+    sys.exit(main(['script', 'input\Words of Radiance - Brandon Sanderson.pdf', '--png', '-d']))
