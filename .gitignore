@@ -1,6 +1,7 @@
 # file input/outputs
 input/*
 output/*
+--input-profile=default/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
