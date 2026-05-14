@@ -29,12 +29,20 @@ def waveshare_opts(fontsize: int = 8, margins: int = 5) -> str:
         String of command line options
     '''
 
+    # use the custom Waveshare 7.5" output profile
     opts = ('-d --input-profile=default --output-profile=waveshare_eink_large '
             '--use-profile-size --preserve-cover-aspect-ratio '
+            # Segoe UI preferred as its able to render the most characters
             '--pdf-serif-family="Segoe UI" --pdf-sans-family="Segoe UI" '
+            # '--pdf-serif-family="Atkinson Hyperlegible" --pdf-sans-family="Atkinson Hyperlegible" '
             f'--pdf-default-font-size={fontsize} --pdf-mono-font-size={fontsize} '
-            f'--pdf-page-margin-top={margins} --pdf-page-margin-bottom={margins} '
-            f'--pdf-page-margin-left={margins} --pdf-page-margin-right={margins}')
+            # double the bottom margin to make room for the footer
+            f'--pdf-page-margin-top={margins} --pdf-page-margin-bottom={2*margins} '
+            f'--pdf-page-margin-left={margins} --pdf-page-margin-right={margins} '
+            # the PDF conversion struggles with rendering fancy punctuation for some reason
+            '--unsmarten-punctuation --pdf-footer-template='
+            # create a footer with current section and running page count
+            '"<footer style=\'justify-content: space-between; font-size: smaller\'><div>_SECTION_</div><div>_PAGENUM_ / _TOTAL_PAGES_</div></footer>"')
     return opts
 
 
@@ -232,3 +240,4 @@ def main(args: list[str] = sys.argv) -> int:
 
 if __name__ == '__main__':
     sys.exit(main())
+    # sys.exit(main(["", "input/Piranesi - Susanna Clarke.epub", "-d", "--png"]))
